@@ -1,0 +1,68 @@
+>From bcfe9095868baa8cc89e4bec179dcd92af91e49c Mon Sep 17 00:00:00 2001
+From: Christoph Hellwig <hch@lst.de>
+Date: Thu, 14 Sep 2023 12:27:53 +0000
+Subject: nvme-cmb: add a pci_driver structure
+
+The pci_driver structure is used to bind to PCI device.  It comes
+with an ID table for the devices to bind to, and a number of methods
+called on events.  For now we only implement ->probe, which is called
+when a matching device is found, and ->remove which is called when
+we're unbound from the device (e.g. because the module is removed).
+
+Signed-off-by: Christoph Hellwig <hch@lst.de>
+---
+ drivers/block/nvme-cmb.c | 27 ++++++++++++++++++++++++++-
+ 1 file changed, 26 insertions(+), 1 deletion(-)
+
+diff --git a/drivers/block/nvme-cmb.c b/drivers/block/nvme-cmb.c
+index 7783ec340..7840bbf4d 100644
+--- a/drivers/block/nvme-cmb.c
++++ b/drivers/block/nvme-cmb.c
+@@ -1,18 +1,43 @@
+ #include <linux/init.h>
+ #include <linux/module.h>
+ #include <linux/kernel.h>
++#include <linux/pci.h>
+ 
+ MODULE_LICENSE("GPL");
+ 
++static int nvme_cmb_probe(struct pci_dev *pdev, const struct pci_device_id *id)
++{
++	dev_info(&pdev->dev, "found NVMe device\n");
++	return 0;
++}
++
++static void nvme_cmb_remove(struct pci_dev *pdev)
++{
++	dev_info(&pdev->dev, "unbinding NVMe device\n");
++}
++
++static const struct pci_device_id nvme_cmb_id_table[] = {
++	{ PCI_DEVICE_CLASS(PCI_CLASS_STORAGE_EXPRESS, 0xffffff) },
++	{ 0, }
++};
++
++static struct pci_driver nvme_cmb_driver = {
++	.name = "nvme_cmb",
++	.id_table = nvme_cmb_id_table,
++	.probe = nvme_cmb_probe,
++	.remove = nvme_cmb_remove,
++};
++
+ static int __init nvme_cmb_init(void)
+ {
+ 	pr_info("loading nvme-cmb module\n");
+-	return 0;
++	return pci_register_driver(&nvme_cmb_driver);
+ }
+ 
+ static void __exit nvme_cmb_exit(void)
+ {
+ 	pr_info("unloading nvme-cmb module\n");
++	pci_unregister_driver(&nvme_cmb_driver);
+ }
+ 
+ module_init(nvme_cmb_init);
+-- 
+2.39.2
+
